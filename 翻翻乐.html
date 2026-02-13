@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校园AI活动 - 努力 必然 幸运 红包抽奖</title>
+    <style>
+        /* 全局样式重置与基础配置 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", "Heiti SC", sans-serif;
+        }
+
+        /* 页面整体：活泼明亮蓝绿渐变，加入轻微科技底纹 */
+        body {
+            /* 蓝绿渐变主背景，活泼明亮不刺眼 */
+            background: linear-gradient(180deg, #4fc3f7, #81c784);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem 1rem;
+            color: #263238;
+            /* 轻微AI科技感底纹，不干扰主体视觉 */
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(173, 232, 244, 0.5) 0%, transparent 5%),
+                radial-gradient(circle at 90% 80%, rgba(129, 230, 217, 0.5) 0%, transparent 5%);
+        }
+
+        /* 顶部LOGO区域：融入校园+AI元素 */
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .company-logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* 科技感蓝绿边框，贴合主题 */
+            border: 2px solid #00e6f6;
+            /* 核心修改：配置LOGO图片（替换下面的"你的LOGO图片路径.jpg/png"为实际图片地址） */
+            background: url("logo.png") no-repeat center / cover;
+            /* 轻微发光效果，增强科技感 */
+            box-shadow: 0 0 15px rgba(0, 230, 246, 0.6);
+        }
+
+        /* 主标题：明亮科技色，加入轻微文字发光 */
+        .main-title {
+            font-size: 2.5rem;
+            /* 亮绿渐变文字，活泼且有科技感 */
+            background: linear-gradient(90deg, #0288d1, #2e7d32);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            /* 适配标题字数，防止小屏幕换行混乱 */
+            word-spacing: 0.5rem;
+            /* 轻微发光，增强AI科技感 */
+            text-shadow: 0 0 10px rgba(0, 136, 209, 0.4);
+        }
+
+        /* 核心：9个红包3x3网格容器 */
+        .red-packet-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* 3列网格布局 */
+            gap: 1.5rem; /* 红包之间的间距 */
+            margin: 2rem 0;
+            width: 100%;
+            max-width: 600px;
+            padding: 0 1rem;
+        }
+
+        /* 单个红包3D翻转容器 */
+        .red-packet-container {
+            perspective: 800px; /* 开启3D透视效果，适配小尺寸红包 */
+            width: 100%;
+            aspect-ratio: 3/4; /* 保持红包宽高比（3:4），适配不同屏幕 */
+            cursor: pointer;
+            /* 红包悬浮轻微缩放，增强交互感 */
+            transition: transform 0.3s ease;
+        }
+
+        .red-packet-container:hover {
+            transform: scale(1.02);
+        }
+
+        /* 红包包装器（负责翻转动画） */
+        .red-packet-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* 平滑翻转过渡 */
+            transform-style: preserve-3d; /* 保留子元素的3D空间 */
+        }
+
+        /* 红包翻转激活状态 */
+        .red-packet-wrapper.flipped {
+            transform: rotateY(180deg); /* 沿Y轴翻转180度 */
+        }
+
+        /* 红包正面与背面通用样式 */
+        .red-packet-front, .red-packet-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden; /* 隐藏背面不可见的部分 */
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            /* 科技感阴影，替代原有红色阴影 */
+            box-shadow: 0 4px 16px rgba(0, 100, 150, 0.3);
+        }
+
+        /* 红包正面样式：蓝绿渐变，融入校园+AI元素 */
+        .red-packet-front {
+            /* 明亮蓝绿渐变，活泼且有科技感 */
+            background: linear-gradient(135deg, #64b5f6, #a5d6a7);
+            /* 荧光蓝绿边框，增强科技感 */
+            border: 2px solid #00e6f6;
+            /* 轻微发光效果 */
+            box-shadow: 0 0 20px rgba(0, 230, 246, 0.4);
+        }
+
+        /* 红包图标：组合AI、图书、铅笔元素 */
+        .packet-icon-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .ai-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.3rem;
+            color: #0288d1;
+        }
+
+        .packet-main-icon {
+            font-size: 2.5rem; /* 适配3x3网格，调整尺寸 */
+            color: #0277bd;
+        }
+
+        .school-icons {
+            display: flex;
+            gap: 0.5rem;
+            font-size: 1rem;
+            color: #2e7d32;
+        }
+
+        .packet-tip {
+            font-size: 0.9rem;
+            color: #263238;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+        }
+
+        /* 红包背面样式：浅蓝白渐变，中奖结果展示 */
+        .red-packet-back {
+            /* 明亮浅蓝白渐变，保证文字可读性 */
+            background: linear-gradient(135deg, #e3f2fd, #f1f8e9);
+            /* 荧光蓝绿边框，与正面统一风格 */
+            border: 2px solid #00e6f6;
+            color: #263238;
+            transform: rotateY(180deg); /* 初始状态背面翻转180度，隐藏 */
+        }
+
+        .prize-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            /* 绿蓝渐变文字，贴合主题 */
+            background: linear-gradient(90deg, #0288d1, #2e7d32);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .prize-result {
+            font-size: 1.5rem;
+            font-weight: bold;
+            /* 深科技蓝，保证可读性 */
+            color: #0277bd;
+            text-align: center;
+            padding: 0 0.5rem;
+            word-break: break-all; /* 防止长奖品名称溢出 */
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+        }
+
+        /* 底部活动规则区域：科技感半透明背景 */
+        .activity-rules {
+            margin-top: 2rem;
+            width: 100%;
+            max-width: 600px;
+            /* 浅蓝半透明背景，贴合主题 */
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px); /* 毛玻璃效果，增强科技感 */
+            border-radius: 12px;
+            padding: 1.5rem;
+            /* 科技蓝绿边框 */
+            border: 1px solid rgba(0, 230, 246, 0.5);
+            box-shadow: 0 4px 16px rgba(0, 100, 150, 0.2);
+        }
+
+        .rules-title {
+            font-size: 1.3rem;
+            /* 绿蓝渐变文字 */
+            background: linear-gradient(90deg, #0288d1, #2e7d32);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(0, 230, 246, 0.3);
+        }
+
+        .rules-list {
+            font-size: 0.95rem;
+            line-height: 1.8;
+            color: #263238;
+            list-style-position: inside;
+            /* 列表项前加入小铅笔图标，增强校园感 */
+            list-style-type: none;
+        }
+
+        .rules-list li::before {
+            content: "✏️ ";
+            margin-right: 0.3rem;
+            color: #2e7d32;
+        }
+
+        /* 响应式适配：小屏幕设备调整尺寸 */
+        @media (max-width: 480px) {
+            .main-title {
+                font-size: 1.8rem; /* 适配新标题字数，小屏幕缩小字体防止换行 */
+                word-spacing: 0.3rem;
+            }
+
+            .red-packet-grid {
+                gap: 1rem; /* 小屏幕缩小红包间距 */
+            }
+
+            .packet-main-icon {
+                font-size: 2rem;
+            }
+
+            .prize-title {
+                font-size: 1rem;
+            }
+
+            .prize-result {
+                font-size: 1.2rem;
+            }
+
+            .activity-rules {
+                padding: 1.2rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部区域：LOGO + 新主标题 -->
+    <header class="header">
+        <div class="company-logo"></div> <!-- 已配置背景图片，无需内部文字 -->
+        <h1 class="main-title">努力 必然 幸运</h1>
+    </header>
+
+    <!-- 中部核心：9个红包3x3网格抽奖区域 -->
+    <div class="red-packet-grid" id="redPacketGrid">
+        <!-- 红包1 -->
+        <div class="red-packet-container">
+            <div class="red-packet-wrapper">
+                <div class="red-packet-front">
+                    <div class="packet-icon-group">
+                        <div class="ai-icon">🤖</div>
+                        <div class="packet-main-icon">🧧</div>
+                        <div class="school-icons">
+                            <span>📚</span>
+                            <span>✏️</span>
+                        </div>
+                    </div>
+                    <div class="packet-tip">点击开启好运</div>
+                </div>
+                <div class="red-packet-back">
+                    <div class="prize-title">恭喜您获得</div>
+                    <div class="prize-result"></div>
+                </div>
+            </div>
+        </div>
+        <!-- 红包2 -->
+        <div class="red-packet-container">
+            <div class="red-packet-wrapper">
+                <div class="red-packet-front">
+                    <div class="packet-icon-group">
+                        <div class="ai-icon">🤖</div>
+                        <div class="packet-main-icon">🧧</div>
+                        <div class="school-icons">
+                            <span>📚</span>
+                            <span>✏️</span>
+                        </div>
+                    </div>
+                    <div class="packet-tip">点击开启好运</div>
+                </div>
+                <div class="red-packet-back">
+                    <div class="prize-title">恭喜您获得</div>
+                    <div class="prize-result"></div>
+                </div>
+            </div>
+        </div>
+        <!-- 红包3 -->
+        <div class="red-packet-container">
+            <div class="red-packet-wrapper">
+                <div class="red-packet-front">
+                    <div class="packet-icon-group">
+                        <div class="ai-icon">🤖</div>
+                        <div class="packet-main-icon">🧧</div>
+                        <div class="school-icons">
+                            <span>📚</span>
+                            <span>✏️</span>
+                        </div>
+                    </div>
+                    <div class="packet-tip">点击开启好运</div>
+                </div>
+                <div class="red-packet-back">
+                    <div class="prize-title">恭喜您获得</div>
+                    <div class="prize-result"></div>
+                </div>
+            </div>
+        </div>
+        <!-- 红包4 -->
+        <div class="red-packet-container">
+            <div class="red-packet-wrapper">
+                <div class="red-packet-front">
+                    <div class="packet-icon-group">
+                        <div class="ai-icon">🤖</div>
+                        <div class="packet-main-icon">🧧</div>
+                        <div class="school-icons">
+                            <span>📚</span>
+                            <span>✏️</span>
+                        </div>
+                    </div>
+                    <div class="packet-tip">点击开启好运</div>
+                </div>
+                <div class="red-packet-back">
+                    <div class="prize-title">恭喜您获得</div>
+                    <div class="prize-result"></div>
+                </div>
+            </div>
+        </div>
+        <!-- 红包5 -->
+        <div class="red-packet-container">
+            <div class="red-packet-wrapper">
+                <div class="red-packet-front">
+                    <div class="packet-icon-group">
+                        <div class="ai-icon">🤖</div>
+                        <div class="packet-main-icon">🧧</div>
+                        <div class="school-icons">
+                            <span>📚</span>
+                            <span>✏️</span>
+                        </div>
+                    </div>
+                    <div class="packet-tip">点击开启好运</div>
+                </div>
+                <div class="red-packet-back">
+                    <div class="prize-title">恭喜您获得</div>
+                    <div class="prize-result"></div>
+                </div>
+            </div>
+        </div>
+        <!-- 红包6 -->
+        <div class="red-packet-container">
+            <div class="red-packet-wrapper">
+                <div class="red-packet-front">
+                    <div class="packet-icon-group">
+                        <div class="ai-icon">🤖</div>
+                        <div class="packet-main-icon">🧧</div>
+                        <div class="school-icons">
+                            <span>📚</span>
+                            <span>✏️</span>
+                        </div>
+                    </div>
+                    <div class="packet-tip">点击开启好运</div>
+                </div>
+                <div class="red-packet-back">
+                    <div class="prize-title">恭喜您获得</div>
+                    <div class="prize-result"></div>
+                </div>
+            </div>
+        </div>
+        <!-- 红包7 -->
+        <div class="red-packet-container">
+            <div class="red-packet-wrapper">
+                <div class="red-packet-front">
+                    <div class="packet-icon-group">
+                        <div class="ai-icon">🤖</div>
+                        <div class="packet-main-icon">🧧</div>
+                        <div class="school-icons">
+                            <span>📚</span>
+                            <span>✏️</span>
+                        </div>
+                    </div>
+                    <div class="packet-tip">点击开启好运</div>
+                </div>
+                <div class="red-packet-back">
+                    <div class="prize-title">恭喜您获得</div>
+                    <div class="prize-result"></div>
+                </div>
+            </div>
+        </div>
+        <!-- 红包8 -->
+        <div class="red-packet-container">
+            <div class="red-packet-wrapper">
+                <div class="red-packet-front">
+                    <div class="packet-icon-group">
+                        <div class="ai-icon">🤖</div>
+                        <div class="packet-main-icon">🧧</div>
+                        <div class="school-icons">
+                            <span>📚</span>
+                            <span>✏️</span>
+                        </div>
+                    </div>
+                    <div class="packet-tip">点击开启好运</div>
+                </div>
+                <div class="red-packet-back">
+                    <div class="prize-title">恭喜您获得</div>
+                    <div class="prize-result"></div>
+                </div>
+            </div>
+        </div>
+        <!-- 红包9 -->
+        <div class="red-packet-container">
+            <div class="red-packet-wrapper">
+                <div class="red-packet-front">
+                    <div class="packet-icon-group">
+                        <div class="ai-icon">🤖</div>
+                        <div class="packet-main-icon">🧧</div>
+                        <div class="school-icons">
+                            <span>📚</span>
+                            <span>✏️</span>
+                        </div>
+                    </div>
+                    <div class="packet-tip">点击开启好运</div>
+                </div>
+                <div class="red-packet-back">
+                    <div class="prize-title">恭喜您获得</div>
+                    <div class="prize-result"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部区域：活动规则 -->
+    <footer class="activity-rules">
+        <h3 class="rules-title">活动规则</h3>
+        <ul class="rules-list">
+            <li>每位用户可多次参与抽奖，点击任意红包即可开启中奖结果，3秒后红包自动还原可再次点击。</li>
+            <li>奖品包含：糖果、零食、可乐、雪碧、橙汁、椰汁、盲盒、再来一次、谢谢参与。</li>
+            <li>中奖后请凭此页面到现场工作人员处兑换对应奖品（"再来一次"可当场继续抽奖，"谢谢参与"无实物奖品）。</li>
+            <li>本次活动最终解释权归本校/本部门所有。</li>
+        </ul>
+    </footer>
+
+    <script>
+        // 1. 配置奖品列表（8种常见奖品 + 谢谢参与，满足需求）
+        const prizeList = [
+            "糖果",
+            "零食",
+            "可乐",
+            "雪碧",
+            "橙汁",
+            "椰汁",
+            "盲盒",
+            "再来一次",
+            "谢谢参与"
+        ];
+
+        // 2. 获取所有红包相关元素（批量获取，支持9个红包独立交互）
+        const allRedPacketContainers = document.querySelectorAll(".red-packet-container");
+
+        // 3. 为每个红包绑定独立的点击事件（实现批量交互，互不干扰）
+        allRedPacketContainers.forEach(container => {
+            // 获取当前红包内的包装器和中奖结果显示区域
+            const wrapper = container.querySelector(".red-packet-wrapper");
+            const prizeResult = container.querySelector(".prize-result");
+            
+            // 标记当前红包是否正在翻转中（防止重复点击触发多次动画）
+            let isFlipping = false;
+
+            container.addEventListener("click", function() {
+                // 正在翻转中则直接返回，避免冲突
+                if (isFlipping) return;
+
+                // 步骤1：实现轻微震动反馈（兼容移动端主流浏览器）
+                if (window.navigator.vibrate) {
+                    window.navigator.vibrate(50); // 震动50毫秒，强度适中
+                }
+
+                // 步骤2：标记为正在翻转，添加翻转类触发3D翻转动画
+                isFlipping = true;
+                wrapper.classList.add("flipped");
+
+                // 步骤3：随机抽取奖品并显示（延迟400ms，与翻转动画同步，体验更佳）
+                setTimeout(() => {
+                    const randomIndex = Math.floor(Math.random() * prizeList.length);
+                    const winPrize = prizeList[randomIndex];
+                    prizeResult.textContent = winPrize;
+                }, 400);
+
+                // 步骤4：3秒后自动还原红包（移除翻转类、清空结果、解除翻转标记，实现连续抽奖）
+                setTimeout(() => {
+                    wrapper.classList.remove("flipped");
+                    // 延迟清空结果（与翻转动画同步，避免视觉闪烁）
+                    setTimeout(() => {
+                        prizeResult.textContent = "";
+                        isFlipping = false;
+                    }, 400);
+                }, 3000); // 3秒后还原，满足连续抽奖需求
+            });
+        });
+    </script>
+</body>
+</html>
