@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互动配对游戏</title>
+    <style>
+        :root {
+            --blue-1: #e3f2fd;
+            --blue-2: #90caf9;
+            --green-1: #e8f5e9;
+            --green-2: #a5d6a7;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 60vh;
+        }
+
+        .card {
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: center;
+            font-weight: bold;
+            user-select: none;
+        }
+
+        .card.active {
+            transform: scale(1.05);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card.disabled {
+            opacity: 0;
+            transform: scale(0);
+            pointer-events: none;
+        }
+
+        .stats {
+            grid-column: 1 / -1;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        #fileInput {
+            margin: 20px 0;
+        }
+
+        .error {
+            color: #d32f2f;
+            padding: 10px;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <input type="file" id="fileInput" accept=".xlsx">
+    <div class="error" id="errorMsg"></div>
+    <div class="container" id="gameContainer"></div>
+    <div class="stats" id="statsPanel" style="display: none;">
+        <h2>游戏统计</h2>
+        <p>用时: <span id="timeElapsed">00:00:00</span></p>
+        <p>准确率: <span id="accuracy">0%</span></p>
+        <div id="historyLog"></div>
+        <button onclick="initGame()">重新开始</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script type="module">
+        let gameData = [];
+        let selectedLeft = null;
+        let selectedRight = null;
+        let startTime = null;
+        let timerId = null;
+        let totalPairs = 0;
+        let attempts = 0;
+        let success = 0;
+        const interactionHistory = [];
+
+        const validateData = (data) => {
+            if (!Array.isArray(data) || data.length === 0) return false;
+            return data.every(row => row.key && row.value);
+        };
+
+        const parseExcel = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const workbook = XLSX.read(e.target.result, {type: 'array'});
+                        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const data = XLSX.utils.sheet_to_json(sheet, {header: ['key', 'value']});
+                        resolve(data.map((row, index) => ({
+                            id: index,
+                            key: row.key,
+                            value: row.value
+                        })));
+                    } catch (error) {
+                        reject('文件解析失败');
+                    }
+                };
+                reader.onerror = () => reject('文件读取失败');
+                reader.readAsArrayBuffer(file);
+            });
+        };
+
+        const createCard = (text, isLeft) => {
+            const card = document.createElement('div');
+            card.className = `card ${isLeft ? 'left' : 'right'}`;
+            card.style.backgroundColor = isLeft ? 'var(--blue-2)' : 'var(--green-2)';
+            card.textContent = text;
+            return card;
+        };
+
+        const shuffleArray = (array) => {
+            return array.sort(() => Math.random() - 0.5);
+        };
+
+        const updateTimer = () => {
+            const diff = Date.now() - startTime;
+            const time = new Date(diff).toISOString().substr(11, 8);
+            document.getElementById('timeElapsed').textContent = time;
+        };
+
+        const showStats = () => {
+            clearInterval(timerId);
+            document.getElementById('statsPanel').style.display = 'block';
+            document.getElementById('accuracy').textContent = 
+                `${Math.round((success / attempts) * 100 || 0)}%`;
+            
+            const historyLog = document.getElementById('historyLog');
+            historyLog.innerHTML = interactionHistory
+                .map(entry => `<div>${entry.time} - ${entry.text}</div>`)
+                .join('');
+        };
+
+        const handlePair = (leftCard, rightCard) => {
+            attempts++;
+            const correct = leftCard.dataset.id === rightCard.dataset.id;
+            interactionHistory.push({
+                time: new Date().toLocaleTimeString(),
+                text: `${leftCard.textContent} ↔ ${rightCard.textContent} - ${correct ? '✓' : '✗'}`
+            });
+
+            if (correct) {
+                success++;
+                [leftCard, rightCard].forEach(card => {
+                    card.classList.add('disabled');
+                });
+                totalPairs--;
+                if (totalPairs === 0) showStats();
+            }
+
+            setTimeout(() => {
+                leftCard.classList.remove('active');
+                rightCard.classList.remove('active');
+            }, 500);
+        };
+
+        const initGame = async () => {
+            // 初始化状态
+            gameData = [];
+            selectedLeft = selectedRight = null;
+            startTime = null;
+            totalPairs = attempts = success = 0;
+            interactionHistory.length = 0;
+            document.getElementById('statsPanel').style.display = 'none';
+            document.getElementById('errorMsg').style.display = 'none';
+
+            try {
+                const file = document.getElementById('fileInput').files[0];
+                if (!file) throw new Error('请选择文件');
+                
+                gameData = await parseExcel(file);
+                if (!validateData(gameData)) throw new Error('数据格式错误');
+
+                const container = document.getElementById('gameContainer');
+                container.innerHTML = '';
+                
+                // 创建左右列
+                const leftCol = document.createElement('div');
+                leftCol.className = 'column';
+                shuffleArray(gameData).forEach(item => {
+                    const card = createCard(item.key, true);
+                    card.dataset.id = item.id;
+                    leftCol.appendChild(card);
+                });
+
+                const rightCol = document.createElement('div');
+                rightCol.className = 'column';
+                shuffleArray([...gameData]).forEach(item => {
+                    const card = createCard(item.value, false);
+                    card.dataset.id = item.id;
+                    rightCol.appendChild(card);
+                });
+
+                container.append(leftCol, rightCol);
+                totalPairs = gameData.length;
+
+                // 添加事件监听
+                container.querySelectorAll('.left').forEach(card => {
+                    card.onclick = () => {
+                        if (selectedLeft) selectedLeft.classList.remove('active');
+                        selectedLeft = card;
+                        card.classList.add('active');
+                    }
+                });
+
+                container.querySelectorAll('.right').forEach(card => {
+                    card.onclick = () => {
+                        if (!selectedLeft) return;
+                        if (selectedRight) selectedRight.classList.remove('active');
+                        selectedRight = card;
+                        card.classList.add('active');
+                        
+                        if (selectedLeft && selectedRight) {
+                            handlePair(selectedLeft, selectedRight);
+                        }
+                    }
+                });
+
+                // 启动计时器
+                startTime = Date.now();
+                timerId = setInterval(updateTimer, 1000);
+            } catch (error) {
+                document.getElementById('errorMsg').style.display = 'block';
+                document.getElementById('errorMsg').textContent = error.message;
+            }
+        };
+
+        document.getElementById('fileInput').addEventListener('change', initGame);
+    </script>
+</body>
+</html>

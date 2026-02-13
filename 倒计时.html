@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@your time计时器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#FF7D00',
+                        success: '#00B42A',
+                        danger: '#F53F3F',
+                        warning: '#FF7D00',
+                        neutral: {
+                            100: '#F5F7FA',
+                            200: '#E5E6EB',
+                            300: '#C9CDD4',
+                            400: '#86909C',
+                            500: '#4E5969',
+                            600: '#272E3B',
+                            700: '#1D2129',
+                        }
+                    },
+                    fontFamily: {
+                        digital: ['Digital-7', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'card': '0 4px 20px rgba(0, 0, 0, 0.08)',
+                        'card-hover': '0 8px 30px rgba(0, 0, 0, 0.12)',
+                    }
+                },
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .btn-primary {
+                @apply bg-primary hover:bg-primary/90 text-white font-medium py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center gap-2;
+            }
+            .btn-secondary {
+                @apply bg-white border border-neutral-300 hover:bg-neutral-100 text-neutral-700 font-medium py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center gap-2;
+            }
+            .btn-success {
+                @apply bg-success hover:bg-success/90 text-white font-medium py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center gap-2;
+            }
+            .btn-danger {
+                @apply bg-danger hover:bg-danger/90 text-white font-medium py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center gap-2;
+            }
+            .btn-active {
+                @apply bg-primary/10 text-primary border-primary;
+            }
+            .time-input {
+                @apply w-full text-center text-4xl md:text-5xl font-bold bg-transparent border-b-2 border-neutral-300 focus:border-primary focus:outline-none transition-all duration-300;
+            }
+            .time-separator {
+                @apply text-4xl md:text-5xl font-bold text-neutral-500;
+            }
+            .timer-display {
+                @apply text-[clamp(2.5rem,15vw,5rem)] font-bold text-center transition-all duration-300;
+            }
+            .pulse-animation {
+                animation: pulse 1s infinite;
+            }
+            @keyframes pulse {
+                0%, 100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.6;
+                }
+            }
+            .shake-animation {
+                animation: shake 0.5s;
+            }
+            @keyframes shake {
+                0%, 100% {
+                    transform: translateX(0);
+                }
+                10%, 30%, 50%, 70%, 90% {
+                    transform: translateX(-5px);
+                }
+                20%, 40%, 60%, 80% {
+                    transform: translateX(5px);
+                }
+            }
+            .dropdown-content {
+                @apply hidden absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-10 border border-neutral-200;
+            }
+            .dropdown-content.show {
+                @apply block;
+            }
+            .custom-sound-option {
+                @apply p-3 border-t border-neutral-200;
+            }
+            .file-input-label {
+                @apply block text-sm font-medium text-neutral-700 mb-2;
+            }
+            .file-input {
+                @apply block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer;
+            }
+        }
+    </style>
+</head>
+<body class="bg-neutral-100 min-h-screen font-sans text-neutral-700 flex flex-col items-center justify-center p-4">
+    <div class="w-full max-w-2xl">
+        <!-- 标题 -->
+        <header class="text-center mb-8">
+            <h1 class="text-[clamp(1.8rem,5vw,2.5rem)] font-bold text-neutral-700 mb-3">Your time You control</h1>
+            <p class="text-neutral-500">设置时、分、秒、毫秒，精确控制你的时间</p>
+        </header>
+
+        <!-- 计时器主体 -->
+        <main class="bg-white rounded-xl shadow-card p-6 md:p-8 mb-8">
+            <!-- 时间设置区域 -->
+            <div id="timeSetting" class="mb-8">
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="text-center">
+                        <label for="hours" class="block text-neutral-500 mb-2">小时</label>
+                        <input type="number" id="hours" min="0" max="99" value="0" class="time-input">
+                    </div>
+                    <div class="text-center flex items-end justify-center">
+                        <span class="time-separator">:</span>
+                    </div>
+                    <div class="text-center">
+                        <label for="minutes" class="block text-neutral-500 mb-2">分钟</label>
+                        <input type="number" id="minutes" min="0" max="59" value="0" class="time-input">
+                    </div>
+                    <div class="text-center flex items-end justify-center">
+                        <span class="time-separator">:</span>
+                    </div>
+                    <div class="text-center">
+                        <label for="seconds" class="block text-neutral-500 mb-2">秒钟</label>
+                        <input type="number" id="seconds" min="0" max="59" value="0" class="time-input">
+                    </div>
+                    <div class="text-center flex items-end justify-center">
+                        <span class="time-separator">:</span>
+                    </div>
+                    <div class="text-center">
+                        <label for="milliseconds" class="block text-neutral-500 mb-2">毫秒</label>
+                        <input type="number" id="milliseconds" min="0" max="999" value="0" class="time-input">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 倒计时显示区域 -->
+            <div id="timerDisplay" class="timer-display text-neutral-700 mb-8">
+                00:00:00:000
+            </div>
+
+            <!-- 按钮区域 -->
+            <div class="flex flex-wrap justify-center gap-4">
+                <button id="startBtn" class="btn-success">
+                    <i class="fa fa-play"></i> 开始
+                </button>
+                <button id="pauseBtn" class="btn-warning hidden">
+                    <i class="fa fa-pause"></i> 暂停
+                </button>
+                <button id="resetBtn" class="btn-secondary">
+                    <i class="fa fa-refresh"></i> 重置
+                </button>
+                <button id="setBtn" class="btn-primary">
+                    <i class="fa fa-clock-o"></i> 设置时间
+                </button>
+                
+                <!-- 声音控制下拉菜单 -->
+                <div class="relative">
+                    <button id="soundDropdownBtn" class="btn-secondary">
+                        <i class="fa fa-volume-up"></i> 声音
+                    </button>
+                    <div id="soundDropdown" class="dropdown-content">
+                        <div class="p-3 border-b border-neutral-200">
+                            <p class="font-medium text-neutral-700">选择提示音</p>
+                        </div>
+                        <div class="divide-y divide-neutral-200">
+                            <button class="sound-option w-full text-left p-3 hover:bg-neutral-100 transition-colors duration-200 flex items-center" data-sound="alarm">
+                                <i class="fa fa-check-circle text-primary mr-2"></i> 警报声
+                            </button>
+                            <button class="sound-option w-full text-left p-3 hover:bg-neutral-100 transition-colors duration-200 flex items-center" data-sound="bell">
+                                <i class="fa fa-circle-o text-neutral-400 mr-2"></i> 铃铛声
+                            </button>
+                            <button class="sound-option w-full text-left p-3 hover:bg-neutral-100 transition-colors duration-200 flex items-center" data-sound="chimes">
+                                <i class="fa fa-circle-o text-neutral-400 mr-2"></i> 钟声
+                            </button>
+                            <button class="sound-option w-full text-left p-3 hover:bg-neutral-100 transition-colors duration-200 flex items-center" data-sound="digital">
+                                <i class="fa fa-circle-o text-neutral-400 mr-2"></i> 数字提示音
+                            </button>
+                        </div>
+                        <div class="custom-sound-option">
+                            <label for="customSound" class="file-input-label">上传自定义声音</label>
+                            <input type="file" id="customSound" accept="audio/*" class="file-input">
+                            <div id="customSoundInfo" class="mt-2 text-sm text-neutral-500 hidden">
+                                <i class="fa fa-music mr-1"></i> <span id="customSoundName">未选择文件</span>
+                                <button id="useCustomSoundBtn" class="ml-2 text-primary hover:underline text-xs">使用</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 页脚 -->
+        <footer class="text-center text-neutral-500 text-sm">
+            <p>© 自定义计时器 </p>
+        </footer>
+    </div>
+
+    <!-- 音频元素 -->
+    <audio id="alertSound" loop>
+        <source id="audioSource" src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // DOM元素
+        const hoursInput = document.getElementById('hours');
+        const minutesInput = document.getElementById('minutes');
+        const secondsInput = document.getElementById('seconds');
+        const millisecondsInput = document.getElementById('milliseconds');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const setBtn = document.getElementById('setBtn');
+        const soundDropdownBtn = document.getElementById('soundDropdownBtn');
+        const soundDropdown = document.getElementById('soundDropdown');
+        const soundOptions = document.querySelectorAll('.sound-option');
+        const alertSound = document.getElementById('alertSound');
+        const audioSource = document.getElementById('audioSource');
+        const customSoundInput = document.getElementById('customSound');
+        const customSoundInfo = document.getElementById('customSoundInfo');
+        const customSoundName = document.getElementById('customSoundName');
+        const useCustomSoundBtn = document.getElementById('useCustomSoundBtn');
+
+        // 计时器变量
+        let countdown;
+        let totalMilliseconds = 0;
+        let remainingMilliseconds = 0;
+        let isRunning = false;
+        let isSoundEnabled = true;
+        let currentSound = 'alarm';
+        let customSoundUrl = null;
+
+        // 声音选项配置
+        const soundConfig = {
+            alarm: {
+                name: '警报声',
+                url: 'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3'
+            },
+            bell: {
+                name: '铃铛声',
+                url: 'https://assets.mixkit.co/sfx/preview/mixkit-school-bell-tone-2356.mp3'
+            },
+            chimes: {
+                name: '钟声',
+                url: 'https://assets.mixkit.co/sfx/preview/mixkit-church-bells-tolling-1988.mp3'
+            },
+            digital: {
+                name: '数字提示音',
+                url: 'https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3'
+            },
+            custom: {
+                name: '自定义声音',
+                url: null
+            }
+        };
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTimerDisplay();
+            
+            // 绑定事件监听器
+            startBtn.addEventListener('click', startTimer);
+            pauseBtn.addEventListener('click', pauseTimer);
+            resetBtn.addEventListener('click', resetTimer);
+            setBtn.addEventListener('click', setTimer);
+            soundDropdownBtn.addEventListener('click', toggleSoundDropdown);
+            
+            // 点击页面其他区域关闭下拉菜单
+            document.addEventListener('click', function(event) {
+                if (!soundDropdownBtn.contains(event.target) && !soundDropdown.contains(event.target)) {
+                    soundDropdown.classList.remove('show');
+                }
+            });
+            
+            // 声音选项事件
+            soundOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    const soundType = this.getAttribute('data-sound');
+                    selectSound(soundType);
+                    soundDropdown.classList.remove('show');
+                });
+            });
+            
+            // 自定义声音上传
+            customSoundInput.addEventListener('change', handleCustomSoundUpload);
+            useCustomSoundBtn.addEventListener('click', function() {
+                if (customSoundUrl) {
+                    selectSound('custom');
+                    soundDropdown.classList.remove('show');
+                }
+            });
+            
+            // 输入框事件
+            [hoursInput, minutesInput, secondsInput, millisecondsInput].forEach(input => {
+                input.addEventListener('input', function() {
+                    // 限制输入范围
+                    if (this.value < 0) this.value = 0;
+                    if (this.value > parseInt(this.max)) this.value = this.max;
+                    
+                    // 自动填充前导零
+                    if (this.value.length === 1 && this !== millisecondsInput) {
+                        this.value = '0' + this.value;
+                    }
+                    
+                    // 自动进位
+                    if (this === millisecondsInput && this.value >= 1000) {
+                        this.value = '000';
+                        secondsInput.value = (parseInt(secondsInput.value) + 1).toString().padStart(2, '0');
+                    }
+                    if (this === secondsInput && this.value >= 60) {
+                        this.value = '00';
+                        minutesInput.value = (parseInt(minutesInput.value) + 1).toString().padStart(2, '0');
+                    }
+                    if (this === minutesInput && this.value >= 60) {
+                        this.value = '00';
+                        hoursInput.value = (parseInt(hoursInput.value) + 1).toString().padStart(2, '0');
+                    }
+                });
+                
+                // 数字输入框只允许输入数字
+                input.addEventListener('keydown', function(e) {
+                    // 允许: backspace, delete, tab, escape, enter and .
+                    if ([46, 8, 9, 27, 13, 110].includes(e.keyCode) ||
+                         // 允许: Ctrl+A
+                        (e.keyCode === 65 && e.ctrlKey === true) ||
+                         // 允许: home, end, left, right
+                        (e.keyCode >= 35 && e.keyCode <= 39)) {
+                        return;
+                    }
+                    // 确保输入是数字
+                    if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+                        e.preventDefault();
+                    }
+                });
+            });
+        });
+
+        // 更新计时器显示
+        function updateTimerDisplay() {
+            const hours = Math.floor(remainingMilliseconds / 3600000);
+            const minutes = Math.floor((remainingMilliseconds % 3600000) / 60000);
+            const seconds = Math.floor((remainingMilliseconds % 60000) / 1000);
+            const milliseconds = remainingMilliseconds % 1000;
+            
+            timerDisplay.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}:${milliseconds.toString().padStart(3, '0')}`;
+            
+            // 倒计时结束时的视觉效果
+            if (remainingMilliseconds <= 0) {
+                timerDisplay.classList.add('text-danger', 'pulse-animation');
+                if (isSoundEnabled) {
+                    playAlertSound();
+                }
+            } else {
+                timerDisplay.classList.remove('text-danger', 'pulse-animation');
+            }
+        }
+
+        // 开始计时器
+        function startTimer() {
+            if (remainingMilliseconds <= 0) {
+                timerDisplay.classList.add('shake-animation');
+                setTimeout(() => {
+                    timerDisplay.classList.remove('shake-animation');
+                }, 500);
+                return;
+            }
+            
+            if (!isRunning) {
+                isRunning = true;
+                startBtn.classList.add('hidden');
+                pauseBtn.classList.remove('hidden');
+                timeSetting.classList.add('hidden');
+                
+                countdown = setInterval(() => {
+                    remainingMilliseconds -= 10;
+                    
+                    if (remainingMilliseconds <= 0) {
+                        remainingMilliseconds = 0;
+                        clearInterval(countdown);
+                        isRunning = false;
+                        startBtn.classList.remove('hidden');
+                        pauseBtn.classList.add('hidden');
+                    }
+                    
+                    updateTimerDisplay();
+                }, 10);
+            }
+        }
+
+        // 暂停计时器
+        function pauseTimer() {
+            if (isRunning) {
+                isRunning = false;
+                clearInterval(countdown);
+                startBtn.classList.remove('hidden');
+                pauseBtn.classList.add('hidden');
+            }
+        }
+
+        // 重置计时器
+        function resetTimer() {
+            pauseTimer();
+            remainingMilliseconds = totalMilliseconds;
+            updateTimerDisplay();
+            timeSetting.classList.remove('hidden');
+            stopAlertSound();
+        }
+
+        // 设置计时器
+        function setTimer() {
+            pauseTimer();
+            
+            // 获取输入值
+            const hours = parseInt(hoursInput.value) || 0;
+            const minutes = parseInt(minutesInput.value) || 0;
+            const seconds = parseInt(secondsInput.value) || 0;
+            const milliseconds = parseInt(millisecondsInput.value) || 0;
+            
+            // 计算总毫秒数
+            totalMilliseconds = (hours * 3600000) + (minutes * 60000) + (seconds * 1000) + milliseconds;
+            remainingMilliseconds = totalMilliseconds;
+            
+            updateTimerDisplay();
+        }
+
+        // 播放提示音
+        function playAlertSound() {
+            // 现代浏览器安全策略要求用户交互后才能播放音频
+            alertSound.currentTime = 0;
+            alertSound.play().catch(e => {
+                console.error("播放音频失败:", e);
+                // 可以考虑在这里添加一个视觉提示，告知用户需要点击页面来启用声音
+            });
+        }
+
+        // 停止提示音
+        function stopAlertSound() {
+            alertSound.pause();
+            alertSound.currentTime = 0;
+        }
+
+        // 切换声音下拉菜单
+        function toggleSoundDropdown() {
+            soundDropdown.classList.toggle('show');
+        }
+
+        // 选择声音
+        function selectSound(soundType) {
+            if (currentSound === soundType) return;
+            
+            currentSound = soundType;
+            let sound = soundConfig[soundType];
+            
+            // 处理自定义声音
+            if (soundType === 'custom' && customSoundUrl) {
+                sound.url = customSoundUrl;
+            }
+            
+            // 更新音频源
+            if (sound.url) {
+                audioSource.src = sound.url;
+                alertSound.load();
+            }
+            
+            // 更新UI
+            soundOptions.forEach(option => {
+                const optionSound = option.getAttribute('data-sound');
+                const icon = option.querySelector('i');
+                
+                if (optionSound === soundType) {
+                    option.classList.add('bg-primary/5');
+                    icon.className = 'fa fa-check-circle text-primary mr-2';
+                } else {
+                    option.classList.remove('bg-primary/5');
+                    icon.className = 'fa fa-circle-o text-neutral-400 mr-2';
+                }
+            });
+            
+            // 更新按钮文本
+            soundDropdownBtn.innerHTML = `<i class="fa fa-volume-up"></i> ${sound.name}`;
+        }
+
+        // 处理自定义声音上传
+        function handleCustomSoundUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // 检查文件类型
+            if (!file.type.startsWith('audio/')) {
+                alert('请选择音频文件');
+                customSoundInput.value = '';
+                return;
+            }
+            
+            // 创建文件URL
+            customSoundUrl = URL.createObjectURL(file);
+            soundConfig.custom.url = customSoundUrl;
+            
+            // 更新UI
+            customSoundName.textContent = file.name;
+            customSoundInfo.classList.remove('hidden');
+            
+            // 自动选择自定义声音
+            // selectSound('custom');
+        }
+    </script>
+</body>
+</html>
+    

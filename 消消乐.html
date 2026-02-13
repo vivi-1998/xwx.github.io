@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>单词消消乐 - 完整功能版</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .stats-box {
+            padding: 8px 16px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 5px;
+            min-width: 80px;
+            text-align: center;
+            font-size: 14px;
+        }
+        #gameArea {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .card {
+            position: relative;
+            height: 60px;
+            width: 100px;
+            perspective: 800px;
+            cursor: pointer;
+            margin: 3px;
+        }
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: all 0.4s;
+            transform-style: preserve-3d;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .card.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            border-radius: 6px;
+            padding: 5px;
+            word-break: break-word;
+            transition: all 0.3s;
+        }
+        .front {
+            background: white;
+            color: #333;
+        }
+        .back {
+            background: #4CAF50;
+            color: white;
+            transform: rotateY(180deg);
+        }
+        .matched {
+            animation: matchEffect 0.6s forwards;
+            pointer-events: none;
+        }
+        @keyframes matchEffect {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+        .error {
+            animation: errorShake 0.4s;
+        }
+        @keyframes errorShake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            50% { transform: translateX(8px); }
+            75% { transform: translateX(-8px); }
+            100% { transform: translateX(0); }
+        }
+        #controls {
+            text-align: center;
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        .game-btn {
+            padding: 8px 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .game-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .card:active .card-inner {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-header">
+        <div class="stats-box">时间: <span id="timer">60</span>s</div>
+        <div class="stats-box">得分: <span id="score">0</span></div>
+        <div class="stats-box">连击: <span id="combo">0</span>x</div>
+    </div>
+    <div id="controls">
+        <input type="file" id="excelFile" accept=".xlsx" style="display: none;">
+        <button onclick="document.getElementById('excelFile').click()" class="game-btn">上传单词表</button>
+        <button onclick="resetGame()" class="game-btn" id="resetBtn">重新开始</button>
+    </div>
+    <div id="gameArea"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        let words = [];
+        let selectedCard = null;
+        let score = 0;
+        let combo = 0;
+        let timeLeft = 60;
+        let timerId = null;
+        let comboTimeout = null;
+
+        function initGame() {
+            score = 0;
+            combo = 0;
+            timeLeft = 60;
+            selectedCard = null;
+            clearInterval(timerId);
+            clearTimeout(comboTimeout);
+            updateUI();
+            timerId = setInterval(updateTimer, 1000);
+            document.getElementById('resetBtn').disabled = false;
+        }
+
+        function resetGame() {
+            if (words.length === 0) {
+                alert('请先上传单词表！');
+                return;
+            }
+            clearGameArea();
+            initGame();
+            startGame();
+        }
+
+        function clearGameArea() {
+            const gameArea = document.getElementById('gameArea');
+            while (gameArea.firstChild) {
+                gameArea.removeChild(gameArea.firstChild);
+            }
+        }
+
+        function updateTimer() {
+            timeLeft--;
+            document.getElementById('timer').textContent = timeLeft;
+
+            if (timeLeft <= 0) {
+                clearInterval(timerId);
+                alert(`时间到！最终得分: ${score}`);
+                clearGameArea();
+                document.getElementById('resetBtn').disabled = true;
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('combo').textContent = combo;
+        }
+
+        document.getElementById('excelFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                words = [];
+                clearGameArea();
+                initGame();
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                words = jsonData.flatMap(row => {
+                    const en = row[Object.keys(row)[0]];
+                    const cn = row[Object.keys(row)[1]];
+                    const pairId = Math.random().toString(36).substr(2, 9);
+                    return [
+                        { text: en, lang: 'en', pair: cn, pairId: pairId },
+                        { text: cn, lang: 'cn', pair: en, pairId: pairId }
+                    ];
+                });
+                startGame();
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function startGame() {
+            const gameArea = document.getElementById('gameArea');
+            const shuffledWords = [...words].sort(() => Math.random() - 0.5);
+
+            shuffledWords.forEach(word => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-face front">${word.text}</div>
+                        <div class="card-face back">${word.text}</div>
+                    </div>
+                `;
+                card.dataset.pair = word.pair;
+                card.dataset.lang = word.lang;
+                card.dataset.pairId = word.pairId;
+                card.addEventListener('click', handleCardClick);
+                gameArea.appendChild(card);
+            });
+        }
+
+        function handleCardClick(e) {
+            const card = e.currentTarget;
+            if (card.classList.contains('matched') || 
+                card.classList.contains('flipped') || 
+                timeLeft <= 0) return;
+
+            card.classList.add('flipped');
+
+            if (!selectedCard) {
+                selectedCard = card;
+            } else {
+                const isMatch = 
+                    selectedCard.dataset.pairId === card.dataset.pairId &&
+                    selectedCard.dataset.lang !== card.dataset.lang;
+
+                if (isMatch) {
+                    score += 100 * (1 + combo * 0.5);
+                    combo++;
+                    [card, selectedCard].forEach(c => {
+                        c.classList.add('matched');
+                        c.addEventListener('animationend', () => {
+                            c.remove();
+                        }, { once: true });
+                    });
+                } else {
+                    combo = 0;
+                    [card, selectedCard].forEach(c => {
+                        c.classList.add('error');
+                        setTimeout(() => {
+                            c.classList.remove('flipped', 'error');
+                        }, 500);
+                    });
+                }
+
+                selectedCard = null;
+                updateUI();
+                clearTimeout(comboTimeout);
+                comboTimeout = setTimeout(() => combo = 0, 2000);
+            }
+        }
+    </script>
+</body>
+</html>

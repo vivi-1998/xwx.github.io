@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>填空题检测系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- 配置Tailwind自定义颜色和字体 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#10b981',
+                        danger: '#ef4444',
+                        neutral: '#64748b',
+                        light: '#f1f5f9',
+                        dark: '#1e293b'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .transition-height {
+                transition: max-height 0.3s ease-out;
+            }
+            .card-shadow {
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            }
+            .animate-fadeIn {
+                animation: fadeIn 0.3s ease-in-out;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-dark">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-md fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-check-square-o text-primary text-2xl"></i>
+                <h1 class="text-xl md:text-2xl font-bold text-primary">填空题检测系统</h1>
+            </div>
+            <div id="stats-display" class="hidden items-center space-x-4 text-sm md:text-base">
+                <div class="flex items-center">
+                    <i class="fa fa-question-circle text-primary mr-1"></i>
+                    <span id="total-questions">总题数: 0</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fa fa-check-circle text-secondary mr-1"></i>
+                    <span id="correct-answers">正确: 0</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fa fa-times-circle text-danger mr-1"></i>
+                    <span id="wrong-answers">错误: 0</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fa fa-percent text-neutral mr-1"></i>
+                    <span id="accuracy">正确率: 0%</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 pt-24 pb-16">
+        <!-- 步骤指示器 -->
+        <div class="flex justify-center mb-8">
+            <div class="flex items-center w-full max-w-2xl">
+                <div id="step-1-indicator" class="flex flex-col items-center flex-1">
+                    <div class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">1</div>
+                    <span class="mt-2 text-sm md:text-base font-medium text-primary">上传题目</span>
+                </div>
+                <div class="h-1 flex-1 bg-gray-200 relative">
+                    <div id="progress-1-2" class="absolute top-0 left-0 h-full bg-primary w-0 transition-all duration-500"></div>
+                </div>
+                <div id="step-2-indicator" class="flex flex-col items-center flex-1">
+                    <div class="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center font-bold">2</div>
+                    <span class="mt-2 text-sm md:text-base font-medium text-gray-500">答题</span>
+                </div>
+                <div class="h-1 flex-1 bg-gray-200 relative">
+                    <div id="progress-2-3" class="absolute top-0 left-0 h-full bg-primary w-0 transition-all duration-500"></div>
+                </div>
+                <div id="step-3-indicator" class="flex flex-col items-center flex-1">
+                    <div class="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center font-bold">3</div>
+                    <span class="mt-2 text-sm md:text-base font-medium text-gray-500">查看结果</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 步骤1: 文件上传区域 -->
+        <section id="step-1" class="max-w-3xl mx-auto">
+            <div class="bg-white rounded-xl shadow-lg p-6 md:p-8 transition-all duration-300 hover:shadow-xl">
+                <h2 class="text-2xl font-bold mb-4 text-center">导入填空题</h2>
+                <p class="text-neutral mb-6 text-center">请上传包含填空题的XLSX文件，系统将自动解析并生成答题界面</p>
+                
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center transition-all duration-300 hover:border-primary" id="drop-area">
+                    <i class="fa fa-file-excel-o text-5xl text-primary mb-4"></i>
+                    <p class="mb-4">拖放XLSX文件到此处，或</p>
+                    <label class="inline-block bg-primary hover:bg-primary/90 text-white font-medium py-2 px-6 rounded-lg cursor-pointer transition-all duration-300 transform hover:scale-105">
+                        <i class="fa fa-upload mr-2"></i>选择文件
+                        <input type="file" id="file-input" accept=".xlsx, .xls" class="hidden">
+                    </label>
+                    
+                    <div class="mt-6 text-sm text-neutral">
+                        <p class="mb-2"><i class="fa fa-info-circle mr-1"></i> 文件格式要求：</p>
+                        <ul class="list-disc list-inside text-left max-w-md mx-auto">
+                            <li>第一列：题目内容（请用【】标示需要填写的部分）</li>
+                            <li>第二列：正确答案</li>
+                            <li>第三列（可选）：题目解析</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- 示例文件下载按钮 -->
+                    <div class="mt-6">
+                        <button id="download-template" class="text-primary hover:text-primary/80 font-medium transition-colors flex items-center mx-auto w-fit">
+                            <i class="fa fa-download mr-1"></i>下载示例模板文件
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="file-info" class="mt-6 hidden">
+                    <div class="bg-light rounded-lg p-4 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="fa fa-file-text-o text-primary mr-3"></i>
+                            <div>
+                                <p id="file-name" class="font-medium"></p>
+                                <p id="file-stats" class="text-sm text-neutral"></p>
+                            </div>
+                        </div>
+                        <button id="remove-file" class="text-neutral hover:text-danger transition-colors">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="mt-6 text-center">
+                        <button id="start-quiz" class="bg-primary hover:bg-primary/90 text-white font-medium py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            <i class="fa fa-play mr-2"></i>开始答题
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 步骤2: 答题区域 -->
+        <section id="step-2" class="max-w-3xl mx-auto hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6 md:p-8 mb-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">填空题</h2>
+                    <div class="bg-light px-3 py-1 rounded-full text-sm font-medium">
+                        <span id="current-question">1</span> / <span id="total-question-count">0</span>
+                    </div>
+                </div>
+                
+                <div id="questions-container" class="space-y-8">
+                    <!-- 题目将通过JavaScript动态生成 -->
+                </div>
+                
+                <div class="flex justify-between mt-8">
+                    <button id="prev-question" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <i class="fa fa-arrow-left mr-2"></i>上一题
+                    </button>
+                    <button id="next-question" class="bg-primary hover:bg-primary/90 text-white font-medium py-2 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                        下一题<i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="text-center">
+                <button id="submit-answers" class="bg-secondary hover:bg-secondary/90 text-white font-medium py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-105">
+                    <i class="fa fa-check mr-2"></i>提交答案
+                </button>
+            </div>
+        </section>
+
+        <!-- 步骤3: 结果展示区域 -->
+        <section id="step-3" class="max-w-3xl mx-auto hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6 md:p-8 mb-6">
+                <h2 class="text-2xl font-bold mb-6 text-center">答题结果</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div class="bg-light rounded-lg p-4 text-center">
+                        <p class="text-neutral text-sm mb-1">总题数</p>
+                        <p id="result-total" class="text-3xl font-bold text-primary">0</p>
+                    </div>
+                    <div class="bg-light rounded-lg p-4 text-center">
+                        <p class="text-neutral text-sm mb-1">正确</p>
+                        <p id="result-correct" class="text-3xl font-bold text-secondary">0</p>
+                    </div>
+                    <div class="bg-light rounded-lg p-4 text-center">
+                        <p class="text-neutral text-sm mb-1">错误</p>
+                        <p id="result-wrong" class="text-3xl font-bold text-danger">0</p>
+                    </div>
+                </div>
+                
+                <div class="mb-8">
+                    <div class="flex justify-between mb-2">
+                        <span class="font-medium">正确率</span>
+                        <span id="result-accuracy" class="font-bold text-primary">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-4">
+                        <div id="accuracy-bar" class="bg-primary h-4 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="text-center mb-6">
+                    <button id="review-answers" class="bg-primary hover:bg-primary/90 text-white font-medium py-2 px-6 rounded-lg transition-all duration-300">
+                        <i class="fa fa-list mr-2"></i>查看详细答题情况
+                    </button>
+                </div>
+            </div>
+            
+            <div id="detailed-results" class="bg-white rounded-xl shadow-lg p-6 md:p-8 hidden">
+                <h3 class="text-xl font-bold mb-4 flex items-center">
+                    <i class="fa fa-bar-chart text-primary mr-2"></i>详细答题情况
+                </h3>
+                
+                <div id="results-container" class="space-y-6">
+                    <!-- 详细结果将通过JavaScript动态生成 -->
+                </div>
+                
+                <div class="mt-8 text-center">
+                    <button id="restart-quiz" class="bg-secondary hover:bg-secondary/90 text-white font-medium py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-105">
+                        <i class="fa fa-refresh mr-2"></i>重新开始
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark text-white py-6">
+        <div class="container mx-auto px-4 text-center">
+            <p>填空题检测系统 &copy; 2023</p>
+            <p class="text-gray-400 text-sm mt-2">使用现代化Web技术构建</p>
+        </div>
+    </footer>
+
+    <!-- 通知提示组件 -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-dark text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center">
+        <i id="toast-icon" class="fa fa-info-circle mr-2"></i>
+        <span id="toast-message"></span>
+    </div>
+
+    <script>
+        // 全局变量
+        let questions = [];
+        let currentQuestionIndex = 0;
+        let userAnswers = [];
+        let results = [];
+        
+        // DOM元素
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('file-input');
+        const fileInfo = document.getElementById('file-info');
+        const fileName = document.getElementById('file-name');
+        const fileStats = document.getElementById('file-stats');
+        const removeFile = document.getElementById('remove-file');
+        const startQuiz = document.getElementById('start-quiz');
+        const toast = document.getElementById('toast');
+        const toastIcon = document.getElementById('toast-icon');
+        const toastMessage = document.getElementById('toast-message');
+        const downloadTemplate = document.getElementById('download-template');
+        
+        // 步骤元素
+        const step1 = document.getElementById('step-1');
+        const step2 = document.getElementById('step-2');
+        const step3 = document.getElementById('step-3');
+        const step1Indicator = document.getElementById('step-1-indicator');
+        const step2Indicator = document.getElementById('step-2-indicator');
+        const step3Indicator = document.getElementById('step-3-indicator');
+        const progress12 = document.getElementById('progress-1-2');
+        const progress23 = document.getElementById('progress-2-3');
+        
+        // 答题元素
+        const questionsContainer = document.getElementById('questions-container');
+        const currentQuestionEl = document.getElementById('current-question');
+        const totalQuestionCount = document.getElementById('total-question-count');
+        const prevQuestionBtn = document.getElementById('prev-question');
+        const nextQuestionBtn = document.getElementById('next-question');
+        const submitAnswersBtn = document.getElementById('submit-answers');
+        
+        // 结果元素
+        const resultTotal = document.getElementById('result-total');
+        const resultCorrect = document.getElementById('result-correct');
+        const resultWrong = document.getElementById('result-wrong');
+        const resultAccuracy = document.getElementById('result-accuracy');
+        const accuracyBar = document.getElementById('accuracy-bar');
+        const reviewAnswersBtn = document.getElementById('review-answers');
+        const detailedResults = document.getElementById('detailed-results');
+        const resultsContainer = document.getElementById('results-container');
+        const restartQuizBtn = document.getElementById('restart-quiz');
+        const statsDisplay = document.getElementById('stats-display');
+        const totalQuestionsEl = document.getElementById('total-questions');
+        const correctAnswersEl = document.getElementById('correct-answers');
+        const wrongAnswersEl = document.getElementById('wrong-answers');
+        const accuracyEl = document.getElementById('accuracy');
+        
+        // 显示通知提示
+        function showToast(message, isSuccess = true) {
+            toastMessage.textContent = message;
+            toastIcon.className = isSuccess ? 'fa fa-check-circle mr-2' : 'fa fa-exclamation-circle mr-2';
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+        
+        // 处理文件上传 - 优化版本
+        function handleFileUpload(file) {
+            // 检查文件大小，防止过大文件
+            if (file.size > 10 * 1024 * 1024) { // 10MB
+                showToast('文件过大，请上传10MB以下的Excel文件', false);
+                return;
+            }
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    // 尝试多种方式解析文件
+                    const data = new Uint8Array(e.target.result);
+                    let workbook;
+                    
+                    try {
+                        // 基本解析方式
+                        workbook = XLSX.read(data, { type: 'array' });
+                    } catch (error) {
+                        console.log('基本解析失败，尝试兼容模式:', error);
+                        // 尝试兼容模式解析
+                        workbook = XLSX.read(data, { 
+                            type: 'array',
+                            cellDates: true,
+                            cellText: false
+                        });
+                    }
+                    
+                    // 检查是否有工作表
+                    if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
+                        showToast('文件中未找到工作表，请检查文件内容', false);
+                        return;
+                    }
+                    
+                    // 获取第一个工作表
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // 尝试将工作表转换为JSON
+                    let jsonData;
+                    try {
+                        jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    } catch (error) {
+                        console.error('转换工作表为JSON失败:', error);
+                        showToast('解析工作表失败，请检查文件格式', false);
+                        return;
+                    }
+                    
+                    // 检查是否有数据
+                    if (!jsonData || jsonData.length <= 1) {
+                        showToast('文件中未找到有效数据，请确保文件格式正确', false);
+                        return;
+                    }
+                    
+                    // 解析题目数据 (尝试处理有表头和无表头两种情况)
+                    questions = [];
+                    let startRow = 0;
+                    
+                    // 检查第一行是否为表头
+                    const firstRow = jsonData[0];
+                    if (firstRow && firstRow.length > 0 && 
+                        (typeof firstRow[0] === 'string' && firstRow[0].includes('题目'))) {
+                        startRow = 1; // 有表头，从第二行开始
+                    }
+                    
+                    // 解析题目
+                    for (let i = startRow; i < jsonData.length; i++) {
+                        const row = jsonData[i];
+                        // 跳过空行
+                        if (!row || row.length === 0 || (!row[0] && !row[1])) continue;
+                        
+                        // 处理可能的单元格类型问题（如数字转字符串）
+                        const questionText = row[0] ? (row[0].toString ? row[0].toString() : String(row[0])) : '';
+                        const answerText = row[1] ? (row[1].toString ? row[1].toString() : String(row[1])) : '';
+                        const explanationText = row[2] ? (row[2].toString ? row[2].toString() : String(row[2])) : '';
+                        
+                        // 检查是否有题目内容和答案
+                        if (questionText && answerText) {
+                            // 检查是否包含填空题标记
+                            if (questionText.includes('【】')) {
+                                questions.push({
+                                    id: i,
+                                    question: questionText,
+                                    answer: answerText.trim(),
+                                    explanation: explanationText
+                                });
+                            } else {
+                                console.log(`第${i+1}行题目缺少【】标记，已跳过`);
+                            }
+                        }
+                    }
+                    
+                    // 检查是否解析到有效题目
+                    if (questions.length === 0) {
+                        showToast('未找到有效题目，请检查文件格式是否符合要求', false);
+                        return;
+                    }
+                    
+                    // 显示文件信息
+                    fileName.textContent = file.name;
+                    fileStats.textContent = `共 ${questions.length} 道填空题`;
+                    fileInfo.classList.remove('hidden');
+                    startQuiz.disabled = false;
+                    
+                    showToast(`成功导入 ${questions.length} 道题目`);
+                } catch (error) {
+                    console.error('解析文件时出错:', error);
+                    // 更详细的错误信息
+                    let errorMessage = '解析文件失败: ';
+                    if (error.message.includes('Corrupted zip')) {
+                        errorMessage += '文件可能已损坏或不是有效的Excel文件';
+                    } else if (error.message.includes('Unsupported file format')) {
+                        errorMessage += '不支持的文件格式，请使用XLSX或XLS格式';
+                    } else {
+                        errorMessage += '请检查文件是否为有效的Excel文件';
+                    }
+                    showToast(errorMessage, false);
+                }
+            };
+            
+            reader.onerror = function() {
+                console.error('文件读取错误:', reader.error);
+                showToast('读取文件失败，请检查文件是否可访问', false);
+            };
+            
+            // 读取文件为ArrayBuffer
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // 生成并下载示例模板文件 - 修复版本
+        function downloadTemplateFile() {
+            try {
+                // 创建示例数据
+                const data = [
+                    ["题目内容（包含【】标记）", "正确答案", "解析（可选）"],
+                    ["计算机网络中，常用的局域网技术是【】", "以太网", "以太网是目前应用最广泛的局域网技术"],
+                    ["HTML的全称是【】", "超文本标记语言", "HTML是用于创建网页的标准标记语言"],
+                    ["JavaScript是一种【】语言", "脚本", "JavaScript是一种轻量级的解释型编程语言"]
+                ];
+                
+                // 创建工作簿和工作表
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "填空题");
+                
+                // 生成文件并下载 - 兼容多种浏览器
+                try {
+                    // 方法1: 使用库自带的下载功能
+                    XLSX.writeFile(wb, "填空题模板.xlsx");
+                    showToast("示例模板文件已开始下载，请查收");
+                } catch (e) {
+                    console.log("使用备用下载方法:", e);
+                    // 方法2: 手动创建Blob并下载
+                    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                    const blob = new Blob([wbout], { type: 'application/octet-stream' });
+                    
+                    // 创建下载链接
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = "填空题模板.xlsx";
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    // 清理
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 0);
+                    
+                    showToast("示例模板文件已开始下载，请查收");
+                }
+            } catch (error) {
+                console.error("生成模板文件失败:", error);
+                
+                // 提供更详细的错误信息和解决方案
+                let errorMsg = "生成模板文件失败: ";
+                if (error.message.includes('writeFile')) {
+                    errorMsg += "浏览器不支持直接下载，请检查浏览器设置或使用最新版Chrome/Firefox";
+                } else if (error.message.includes('Blob')) {
+                    errorMsg += "浏览器不支持Blob对象，请升级浏览器";
+                } else {
+                    errorMsg += "请尝试刷新页面后重试";
+                }
+                
+                showToast(errorMsg, false);
+                
+                // 最后的备选方案 - 显示模板内容供手动复制
+                showTemplateContent();
+            }
+        }
+        
+        // 显示模板内容供手动复制（当下载功能完全失效时）
+        function showTemplateContent() {
+            // 创建一个模态框显示模板内容
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[80vh] overflow-y-auto">
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fa fa-file-excel-o text-primary mr-2"></i>模板内容
+                    </h3>
+                    <p class="text-neutral mb-4">无法自动下载模板文件，请手动创建Excel文件并按照以下格式填写：</p>
+                    <div class="border rounded-lg overflow-hidden mb-4">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">第一列：题目内容</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">第二列：正确答案</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">第三列：解析（可选）</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-3 py-2 text-sm">计算机网络中，常用的局域网技术是【】</td>
+                                    <td class="px-3 py-2 text-sm">以太网</td>
+                                    <td class="px-3 py-2 text-sm">以太网是目前应用最广泛的局域网技术</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-3 py-2 text-sm">HTML的全称是【】</td>
+                                    <td class="px-3 py-2 text-sm">超文本标记语言</td>
+                                    <td class="px-3 py-2 text-sm">HTML是用于创建网页的标准标记语言</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button id="close-template-modal" class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                        我知道了
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // 添加关闭事件
+            modal.querySelector('#close-template-modal').addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+        }
+        
+        // 切换到步骤2：答题
+        function goToStep2() {
+            step1.classList.add('hidden');
+            step2.classList.remove('hidden');
+            
+            // 更新步骤指示器
+            step1Indicator.querySelector('div').classList.remove('bg-primary');
+            step1Indicator.querySelector('div').classList.add('bg-secondary');
+            step1Indicator.querySelector('span').classList.remove('text-primary');
+            step1Indicator.querySelector('span').classList.add('text-secondary');
+            
+            step2Indicator.querySelector('div').classList.remove('bg-gray-300', 'text-gray-600');
+            step2Indicator.querySelector('div').classList.add('bg-primary', 'text-white');
+            step2Indicator.querySelector('span').classList.remove('text-gray-500');
+            step2Indicator.querySelector('span').classList.add('text-primary');
+            
+            progress12.style.width = '100%';
+            
+            // 初始化答题状态
+            currentQuestionIndex = 0;
+            userAnswers = new Array(questions.length).fill('');
+            
+            // 更新题目计数
+            totalQuestionCount.textContent = questions.length;
+            currentQuestionEl.textContent = currentQuestionIndex + 1;
+            
+            // 显示第一题
+            renderCurrentQuestion();
+            
+            // 显示统计信息
+            statsDisplay.classList.remove('hidden');
+            totalQuestionsEl.textContent = `总题数: ${questions.length}`;
+            correctAnswersEl.textContent = `正确: 0`;
+            wrongAnswersEl.textContent = `错误: 0`;
+            accuracyEl.textContent = `正确率: 0%`;
+        }
+        
+        // 切换到步骤3：结果展示
+        function goToStep3() {
+            step2.classList.add('hidden');
+            step3.classList.remove('hidden');
+            
+            // 更新步骤指示器
+            step2Indicator.querySelector('div').classList.remove('bg-primary');
+            step2Indicator.querySelector('div').classList.add('bg-secondary');
+            step2Indicator.querySelector('span').classList.remove('text-primary');
+            step2Indicator.querySelector('span').classList.add('text-secondary');
+            
+            step3Indicator.querySelector('div').classList.remove('bg-gray-300', 'text-gray-600');
+            step3Indicator.querySelector('div').classList.add('bg-primary', 'text-white');
+            step3Indicator.querySelector('span').classList.remove('text-gray-500');
+            step3Indicator.querySelector('span').classList.add('text-primary');
+            
+            progress23.style.width = '100%';
+            
+            // 计算结果
+            calculateResults();
+            
+            // 显示结果摘要
+            resultTotal.textContent = questions.length;
+            const correctCount = results.filter(r => r.isCorrect).length;
+            const wrongCount = questions.length - correctCount;
+            const accuracy = ((correctCount / questions.length) * 100).toFixed(1);
+            
+            resultCorrect.textContent = correctCount;
+            resultWrong.textContent = wrongCount;
+            resultAccuracy.textContent = `${accuracy}%`;
+            
+            // 带动画效果显示进度条
+            setTimeout(() => {
+                accuracyBar.style.width = `${accuracy}%`;
+            }, 100);
+            
+            // 更新统计信息
+            correctAnswersEl.textContent = `正确: ${correctCount}`;
+            wrongAnswersEl.textContent = `错误: ${wrongCount}`;
+            accuracyEl.textContent = `正确率: ${accuracy}%`;
+        }
+        
+        // 渲染当前题目
+        function renderCurrentQuestion() {
+            const question = questions[currentQuestionIndex];
+            questionsContainer.innerHTML = '';
+            
+            // 分割题目文本，找到需要填空的部分
+            const parts = question.question.split(/【】/);
+            let questionHtml = '';
+            
+            for (let i = 0; i < parts.length; i++) {
+                questionHtml += parts[i];
+                if (i < parts.length - 1) {
+                    // 添加输入框作为填空题
+                    questionHtml += `<input type="text" 
+                                          class="mx-2 px-3 py-1 border-b-2 border-gray-300 focus:border-primary focus:outline-none w-40 md:w-60 transition-colors" 
+                                          id="answer-input" 
+                                          placeholder="请输入答案"
+                                          value="${userAnswers[currentQuestionIndex] || ''}">`;
+                }
+            }
+            
+            const questionElement = document.createElement('div');
+            questionElement.className = 'animate-fadeIn';
+            questionElement.innerHTML = `
+                <div class="mb-4">
+                    <h3 class="text-lg font-medium mb-2">${questionHtml}</h3>
+                </div>
+            `;
+            
+            questionsContainer.appendChild(questionElement);
+            
+            // 聚焦到输入框
+            const answerInput = document.getElementById('answer-input');
+            if (answerInput) {
+                answerInput.focus();
+                
+                // 保存用户输入
+                answerInput.addEventListener('input', function() {
+                    userAnswers[currentQuestionIndex] = this.value.trim();
+                });
+            }
+            
+            // 更新按钮状态
+            prevQuestionBtn.disabled = currentQuestionIndex === 0;
+            nextQuestionBtn.disabled = currentQuestionIndex === questions.length - 1;
+        }
+        
+        // 计算答题结果
+        function calculateResults() {
+            results = questions.map((question, index) => {
+                const userAnswer = userAnswers[index] || '';
+                // 不区分大小写和前后空格的比较
+                const isCorrect = userAnswer.trim().toLowerCase() === question.answer.trim().toLowerCase();
+                return {
+                    question: question.question,
+                    userAnswer: userAnswer,
+                    correctAnswer: question.answer,
+                    explanation: question.explanation,
+                    isCorrect: isCorrect
+                };
+            });
+        }
+        
+        // 显示详细答题情况
+        function showDetailedResults() {
+            resultsContainer.innerHTML = '';
+            
+            results.forEach((result, index) => {
+                const resultElement = document.createElement('div');
+                resultElement.className = `p-4 rounded-lg border ${result.isCorrect ? 'border-secondary bg-green-50' : 'border-danger bg-red-50'}`;
+                
+                // 格式化题目，显示用户答案和正确答案
+                const parts = result.question.split(/【】/);
+                let questionHtml = '';
+                
+                for (let i = 0; i < parts.length; i++) {
+                    questionHtml += parts[i];
+                    if (i < parts.length - 1) {
+                        questionHtml += `<span class="${result.isCorrect ? 'text-secondary font-medium' : 'text-danger font-medium line-through'}">${result.userAnswer || '[未作答]'}</span>`;
+                    }
+                }
+                
+                resultElement.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-medium">第 ${index + 1} 题</h4>
+                        <span class="${result.isCorrect ? 'bg-secondary/20 text-secondary' : 'bg-danger/20 text-danger'} px-2 py-1 rounded-full text-sm font-medium">
+                            ${result.isCorrect ? '正确' : '错误'}
+                        </span>
+                    </div>
+                    <p class="mb-3">${questionHtml}</p>
+                    ${!result.isCorrect ? `<div class="mb-2">
+                        <p class="text-sm text-neutral mb-1">正确答案：</p>
+                        <p class="text-secondary font-medium">${result.correctAnswer}</p>
+                    </div>` : ''}
+                    ${result.explanation ? `<div class="mt-2 pt-2 border-t border-gray-200">
+                        <p class="text-sm text-neutral"><i class="fa fa-info-circle mr-1"></i>解析：${result.explanation}</p>
+                    </div>` : ''}
+                `;
+                
+                resultsContainer.appendChild(resultElement);
+            });
+            
+            detailedResults.classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // 重新开始
+        function restartQuiz() {
+            // 重置所有状态
+            questions = [];
+            userAnswers = [];
+            results = [];
+            fileInfo.classList.add('hidden');
+            startQuiz.disabled = true;
+            detailedResults.classList.add('hidden');
+            
+            // 回到步骤1
+            step3.classList.add('hidden');
+            step1.classList.remove('hidden');
+            
+            // 重置步骤指示器
+            step1Indicator.querySelector('div').classList.remove('bg-secondary');
+            step1Indicator.querySelector('div').classList.add('bg-primary');
+            step1Indicator.querySelector('span').classList.remove('text-secondary');
+            step1Indicator.querySelector('span').classList.add('text-primary');
+            
+            step2Indicator.querySelector('div').classList.remove('bg-secondary');
+            step2Indicator.querySelector('div').classList.add('bg-gray-300', 'text-gray-600');
+            step2Indicator.querySelector('span').classList.remove('text-secondary');
+            step2Indicator.querySelector('span').classList.add('text-gray-500');
+            
+            step3Indicator.querySelector('div').classList.remove('bg-primary', 'text-white');
+            step3Indicator.querySelector('div').classList.add('bg-gray-300', 'text-gray-600');
+            step3Indicator.querySelector('span').classList.remove('text-primary');
+            step3Indicator.querySelector('span').classList.add('text-gray-500');
+            
+            progress12.style.width = '0%';
+            progress23.style.width = '0%';
+            statsDisplay.classList.add('hidden');
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // 事件监听：拖放文件
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight() {
+            dropArea.classList.add('border-primary', 'bg-blue-50');
+        }
+        
+        function unhighlight() {
+            dropArea.classList.remove('border-primary', 'bg-blue-50');
+        }
+        
+        dropArea.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const file = dt.files[0];
+            
+            if (file) {
+                // 检查文件扩展名
+                const fileName = file.name.toLowerCase();
+                if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+                    handleFileUpload(file);
+                } else {
+                    showToast('请上传XLSX或XLS格式的Excel文件', false);
+                }
+            } else {
+                showToast('未检测到文件，请重试', false);
+            }
+        }
+        
+        // 事件监听：选择文件
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                const file = this.files[0];
+                handleFileUpload(file);
+            }
+        });
+        
+        // 事件监听：移除文件
+        removeFile.addEventListener('click', function() {
+            fileInfo.classList.add('hidden');
+            fileInput.value = '';
+            questions = [];
+            startQuiz.disabled = true;
+        });
+        
+        // 事件监听：开始答题
+        startQuiz.addEventListener('click', goToStep2);
+        
+        // 事件监听：上一题/下一题
+        prevQuestionBtn.addEventListener('click', function() {
+            if (currentQuestionIndex > 0) {
+                // 保存当前答案
+                const answerInput = document.getElementById('answer-input');
+                if (answerInput) {
+                    userAnswers[currentQuestionIndex] = answerInput.value.trim();
+                }
+                
+                currentQuestionIndex--;
+                currentQuestionEl.textContent = currentQuestionIndex + 1;
+                renderCurrentQuestion();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
+        
+        nextQuestionBtn.addEventListener('click', function() {
+            if (currentQuestionIndex < questions.length - 1) {
+                // 保存当前答案
+                const answerInput = document.getElementById('answer-input');
+                if (answerInput) {
+                    userAnswers[currentQuestionIndex] = answerInput.value.trim();
+                }
+                
+                currentQuestionIndex++;
+                currentQuestionEl.textContent = currentQuestionIndex + 1;
+                renderCurrentQuestion();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
+        
+        // 事件监听：提交答案
+        submitAnswersBtn.addEventListener('click', function() {
+            // 保存最后一题的答案
+            const answerInput = document.getElementById('answer-input');
+            if (answerInput) {
+                userAnswers[currentQuestionIndex] = answerInput.value.trim();
+            }
+            
+            // 检查是否有未回答的题目
+            const unanswered = userAnswers.filter(answer => answer === '').length;
+            if (unanswered > 0) {
+                if (!confirm(`您还有 ${unanswered} 道题目未回答，确定要提交吗？`)) {
+                    return;
+                }
+            }
+            
+            goToStep3();
+        });
+        
+        // 事件监听：查看详细结果
+        reviewAnswersBtn.addEventListener('click', showDetailedResults);
+        
+        // 事件监听：重新开始
+        restartQuizBtn.addEventListener('click', restartQuiz);
+        
+        // 事件监听：下载模板文件
+        downloadTemplate.addEventListener('click', downloadTemplateFile);
+        
+        // 点击上传区域触发文件选择
+        dropArea.addEventListener('click', function(e) {
+            // 避免点击下载按钮时触发文件选择
+            if (!e.target.closest('#download-template')) {
+                fileInput.click();
+            }
+        });
+        
+        // 滚动时改变导航栏样式
+        window.addEventListener('scroll', function() {
+            const header = document.querySelector('header');
+            if (window.scrollY > 10) {
+                header.classList.add('py-2', 'shadow-lg');
+                header.classList.remove('py-3', 'shadow-md');
+            } else {
+                header.classList.add('py-3', 'shadow-md');
+                header.classList.remove('py-2', 'shadow-lg');
+            }
+        });
+    </script>
+</body>
+</html>
+    
